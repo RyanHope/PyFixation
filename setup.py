@@ -1,5 +1,5 @@
 from setuptools import setup
-from pyviewx import __version__ as version
+from pyfixation import __version__ as version
 import os.path
 
 descr_file = os.path.join( os.path.dirname( __file__ ), 'Readme.rst' )
