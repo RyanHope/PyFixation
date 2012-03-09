@@ -1,12 +1,9 @@
-.PHONY: clean egg sdist
+.PHONY: clean dist
 
-egg:
-	python setup.py bdist_egg
+dist:
+	python setup.py sdist bdist_egg
 
-sdist:
-	python setup.py sdist
-
-upload: sdist egg
+upload: dist
 	python setup.py sdist bdist_egg upload
 
 clean:

@@ -2,7 +2,7 @@ from setuptools import setup
 from pyfixation import __version__ as version
 import os.path
 
-descr_file = os.path.join( os.path.dirname( __file__ ), 'README.txt' )
+descr_file = os.path.join( os.path.dirname( __file__ ), 'README' )
 
 setup( 
     name = 'PyFixation',
