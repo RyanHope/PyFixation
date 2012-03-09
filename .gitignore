@@ -1,0 +1,9 @@
+*.project
+*.pydevproject
+*.pyc
+.settings
+_build
+test
+PyFixation.egg-info
+build
+dist
