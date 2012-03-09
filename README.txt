@@ -1,6 +1,6 @@
-=======
+==========
 PyFixation
-=======
+==========
 
 ``pyfixation`` is a Python package for classifying raw eye gaze data into discrete events like saccades and fixations.
 This package can be used online in real-time or offline after data has been collected.
