@@ -10,6 +10,9 @@ Algorithms
 * ``DispersionFP`` implements standard I-DT algorithm.
 * ``VelocityFP`` uses a Savitzky-Golay filter to calculate velocity.
 
+Examples
+--------
+
 Here's a basic example of how to use the dispersion based algorithm::
 
 	from pyfixation import DispersionFP
