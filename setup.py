@@ -21,5 +21,8 @@ setup(
 				'Topic :: Scientific/Engineering',
 				'Topic :: Utilities',
     ],
-	license = 'GPL-3'
+	license = 'GPL-3',
+	install_requires = [
+					'scipy',
+	],
  )
