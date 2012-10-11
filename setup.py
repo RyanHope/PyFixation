@@ -21,8 +21,5 @@ setup(
 				'Topic :: Scientific/Engineering',
 				'Topic :: Utilities',
     ],
-	license = 'GPL-3',
-	install_requires = [
-					'setuptools',
-	],
+	license = 'GPL-3'
  )
