@@ -1,7 +1,7 @@
 import numpy as np
 import scipy, scipy.signal
 
-def calc_coeff( window_size, order, deriv = 0 ):
+def calc_coeff( window_size, order, deriv = 0, ts = 1):
 	"""
 	calculates filter coefficients for symmetric savitzky-golay filter.
 	see: http://www.nrbook.com/a/bookcpdf/c14-8.pdf
@@ -16,6 +16,8 @@ def calc_coeff( window_size, order, deriv = 0 ):
 				  1 means that filter results in smoothing the first
 											 derivative of function.
 				  and so on ...
+				  
+	ts            time scaling factor
 	"""
 	try:
 		window_size = np.abs( np.int( window_size ) )
@@ -29,7 +31,7 @@ def calc_coeff( window_size, order, deriv = 0 ):
 	order_range = range( order + 1 )
 	half_window = ( window_size - 1 ) // 2
 	b = np.mat( [[k ** i for i in order_range] for k in range( -half_window, half_window + 1 )] )
-	return half_window, np.linalg.pinv( b ).A[deriv]
+	return half_window, np.linalg.pinv( b ).A[deriv] * ts**deriv * factorial(deriv)
 
 
 def filter( signal, (half_window, coeff) ):
