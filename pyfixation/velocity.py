@@ -1,43 +1,41 @@
 # -*- coding:    utf-8 -*-
 #===============================================================================
 # This file is part of PyFixation.
-# Copyright (C) 2012 Ryan Hope <rmh3093@gmail.com>
+# Copyright (C) 2012-2015 Ryan Hope <rmh3093@gmail.com>
 #
-# PyViewX is free software: you can redistribute it and/or modify
+# PyFixation is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
-# PyViewX is distributed in the hope that it will be useful,
+# PyFixation is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with PyViewX.  If not, see <http://www.gnu.org/licenses/>.
+# along with PyFixation.  If not, see <http://www.gnu.org/licenses/>.
 #===============================================================================
 
 from scipy.signal import savgol_coeffs
 from scipy.ndimage import convolve1d
-
 import numpy as np
-import math
-from exceptions import ValueError
-import os
 
-class VelocityProcessor(object):
+class VelocityFP(object):
 
-	def __init__(self, resolutionX, resolutionY, screenWidth, screenHeight, samplerate, minsac):
+	def __init__(self, resolutionX, resolutionY, screenWidth, screenHeight, samplerate, window, threshold):
 		self.resolutionX = resolutionX
 		self.resolutionY = resolutionY
 		self.centerx = self.resolutionX / 2.0
 		self.centery = self.resolutionY / 2.0
 		self.screenWidth = screenWidth
 		self.screenHeight = screenHeight
+		self.threshold = threshold
+		self.nFixations = 0
+		self.fixating = False
 		self.samplerate = samplerate
 		self.order = 2
-		self.ts = 1.0/self.samplerate
-		self.window = int(2 * int(minsac/self.ts) + 3)
+		self.window = window
 		self.halfwindow = int(self.window/2)
 		self.coeff = [savgol_coeffs(self.window, self.order, 0), savgol_coeffs(self.window, self.order, 1), savgol_coeffs(self.window, self.order, 2)]
 		self.time = np.zeros(self.window, dtype = float)
@@ -61,30 +59,37 @@ class VelocityProcessor(object):
 		vy = convolve1d(self.winay, self.coeff[1])[self.halfwindow]
 		ax = convolve1d(self.winax, self.coeff[2])[self.halfwindow]
 		ay = convolve1d(self.winay, self.coeff[2])[self.halfwindow]
-		v = 1.0 * self.samplerate * math.sqrt(vx ** 2 + vy ** 2)
-		a = 1.0 * self.samplerate * math.sqrt(ax ** 2 + ay ** 2)
+		v = 1.0 * self.samplerate * np.sqrt(vx ** 2 + vy ** 2)
+		a = 1.0 * self.samplerate * np.sqrt(ax ** 2 + ay ** 2)
 		return t, x, y, v, a
 
 	def distance2point(self, x, y, rx, ry, sw, sh, ez, ex, ey):
 		dx = x / rx * sw - sw / 2.0 + ex
 		dy = y / ry * sh - sh / 2.0 - ey
-		return math.sqrt(ez ** 2 + dx ** 2 + dy ** 2)
+		return np.sqrt(ez ** 2 + dx ** 2 + dy ** 2)
 
 	def subtendedAngle(self, x1, y1, x2, y2, rx, ry, sw, sh, ez, ex, ey):
 		d1 = self.distance2point(x1, y1, rx, ry, sw, sh, ez, ex, ey)
 		d2 = self.distance2point(x2, y2, rx, ry, sw, sh, ez, ex, ey)
 		dX = sw*((x2-x1)/rx)
 		dY = sh*((y2-y1)/ry)
-		dS = math.sqrt(dX ** 2 + dY ** 2)
+		dS = np.sqrt(dX ** 2 + dY ** 2)
 		w1 = d1 ** 2 + d2 ** 2 - dS ** 2
 		w2 = 2 * d1 * d2
-		return math.acos(min(max(w1/w2,-1.0),1.0)) * 180.0/math.pi
+		return np.arccos(min(max(w1/w2,-1.0),1.0)) * 180.0/np.pi
 
 	def processData( self, t, x, y, ez, ex=0, ey=0):
 		ax = self.subtendedAngle(x, self.centery, self.centerx, self.centery, self.resolutionX, self.resolutionY, self.screenWidth, self.screenHeight, ez, ex, ey)
 		ay = self.subtendedAngle(self.centerx, y, self.centerx, self.centery, self.resolutionX, self.resolutionY, self.screenWidth, self.screenHeight, ez, ex, ey)
 		self.appendWindow(t, ax, ay, x, y)
-		return self.processWindow()
+		data = self.processWindow()
+		if data[3] < self.threshold:
+			if not self.fixating:
+				self.nFixations += 1
+				self.fixating = True
+		else:
+			self.fixating = False
+		return self.fixating, data
 
 if __name__ == '__main__':
 	from twisted.internet import reactor
@@ -92,6 +97,7 @@ if __name__ == '__main__':
 	from pyviewx.client import iViewXClient, Dispatcher
 	from pyviewx.pygame import Calibrator
 
+	import os
 	import pygame
 	import random
 
@@ -106,17 +112,13 @@ if __name__ == '__main__':
 	angle1 = random.uniform( 0, 360 )
 	angle2 = random.uniform( 0, 360 )
 
-	velThreshold = 75
-	nFixations = 0
-	fixating = False
-
 	gaze = None
 
 	d = Dispatcher()
 
 	@d.listen('ET_SPL')
 	def iViewXEvent(inResponse):
-		global gaze, fix, samp, fp, winx, winy, aw, velThreshold, nFixations, fixating
+		global gaze, fix, samp, fp, winx, winy, aw
 		t = float(inResponse[0])
 		x = float(inResponse[2])
 		y = float(inResponse[4])
@@ -124,14 +126,10 @@ if __name__ == '__main__':
 		ey = float(inResponse[12])
 		ez = float(inResponse[14])
 
-		t, x, y, v, a = fp.processData(t, x, y, ez, ex, ey)
-		if x != None and y != None and v < velThreshold:
-			if not fixating:
-				nFixations += 1
-				fixating = True
-			gaze = (int(x),int(y))
+		fixating, data = fp.processData(t, x, y, ez, ex, ey)
+		if fixating:
+			gaze = (int(data[1]),int(data[2]))
 		else:
-			fixating = False
 			gaze = None
 
 	def draw_text( text, font, color, loc, surf ):
@@ -142,15 +140,15 @@ if __name__ == '__main__':
 		return tr
 
 	def update():
-		global angle1, angle2, gaze, fp, velThreshold
+		global angle1, angle2, gaze, fp
 		if state < 0:
 			return
 		for event in pygame.event.get():
 			if event.type == pygame.KEYUP:
 				if event.key == pygame.K_UP:
-					velThreshold += 0.5
+					fp.threshold += 0.5
 				elif event.key == pygame.K_DOWN:
-					velThreshold -= 0.5
+					fp.threshold -= 0.5
 				elif event.key == pygame.K_ESCAPE:
 					cleanup()
 		screen.fill( ( 0, 0, 0 ) )
@@ -163,12 +161,12 @@ if __name__ == '__main__':
 		pygame.draw.circle( screen, ( 0, 0, 255 ), ( screen_rect.width / 5, screen_rect.height / 5 * 4 ), 10, 0 )
 		pygame.draw.circle( screen, ( 0, 0, 255 ), ( screen_rect.width / 5 * 4, screen_rect.height / 5 ), 10, 0 )
 		pygame.draw.circle( screen, ( 0, 0, 255 ), ( screen_rect.width / 5 * 4, screen_rect.height / 5 * 4 ), 10, 0 )
-		pygame.draw.circle( screen, ( 0, 0, 255 ), ( screen_rect.centerx + int( math.cos( angle1 ) * screen_rect.height / 6 ), screen_rect.centery + int( math.sin( angle1 ) * screen_rect.height / 6 ) ), 5, 0 )
-		pygame.draw.circle( screen, ( 0, 0, 255 ), ( screen_rect.centerx + int( math.cos( angle2 ) * screen_rect.height / 3 ), screen_rect.centery + int( math.sin( angle2 ) * screen_rect.height / 3 ) ), 5, 0 )
+		pygame.draw.circle( screen, ( 0, 0, 255 ), ( screen_rect.centerx + int( np.cos( angle1 ) * screen_rect.height / 6 ), screen_rect.centery + int( np.sin( angle1 ) * screen_rect.height / 6 ) ), 5, 0 )
+		pygame.draw.circle( screen, ( 0, 0, 255 ), ( screen_rect.centerx + int( np.cos( angle2 ) * screen_rect.height / 3 ), screen_rect.centery + int( np.sin( angle2 ) * screen_rect.height / 3 ) ), 5, 0 )
 		if gaze!=None:
 			pygame.draw.circle( screen, ( 255, 255, 0 ), gaze, 3, 1 )
-		draw_text( "%d" % velThreshold, f, ( 255, 255, 255 ), ( screen_rect.left + 50, screen_rect.bottom - 15 ), screen )
-		draw_text( "%d" % nFixations, f, ( 255, 255, 255 ), ( screen_rect.left + 50, screen_rect.top + 15 ), screen )
+		draw_text( "%d" % fp.threshold, f, ( 255, 255, 255 ), ( screen_rect.left + 50, screen_rect.bottom - 15 ), screen )
+		draw_text( "%d" % fp.nFixations, f, ( 255, 255, 255 ), ( screen_rect.left + 50, screen_rect.top + 15 ), screen )
 		pygame.display.flip()
 
 		angle1 += .05
@@ -193,6 +191,7 @@ if __name__ == '__main__':
 	client = iViewXClient( os.environ['EYE_TRACKER'], 4444 )
 	reactor.listenUDP( 5555, client )
 	calibrator = Calibrator( client, screen, reactor = reactor, eye = 0 )
-	fp = VelocityProcessor(1680,1050,473.76,296.1,500,.03)
-	calibrator.start(start)
+	fp = VelocityFP(1680,1050,473.76,296.1,500,23,45)
+	#calibrator.start(start)
+	reactor.callLater(0,lambda:start(None,None))
 	reactor.run()

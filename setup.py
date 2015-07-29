@@ -4,13 +4,13 @@ import os.path
 
 descr_file = os.path.join( os.path.dirname( __file__ ), 'README' )
 
-setup( 
+setup(
     name = 'PyFixation',
     version = version,
 
     packages = ['pyfixation'],
 
-    description = 'A library for classifying raw eye gaze data into discrete events like saccades and fixations.',
+    description = 'A library for online fixation processing',
     long_description = open( descr_file ).read(),
     author = 'Ryan Hope',
     author_email = 'rmh3093@gmail.com',
@@ -23,6 +23,6 @@ setup(
     ],
 	license = 'GPL-3',
 	install_requires = [
-					'scipy',
+					'scipy','numpy'
 	],
  )
