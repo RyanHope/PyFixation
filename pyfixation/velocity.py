@@ -183,6 +183,7 @@ if __name__ == '__main__':
 	def start( lc, results ):
 		global state, update, client, cleanup
 		state = 0
+		reactor.callLater(0, client.setDataFormat, '%TS %ET %SX %SY %DX %DY %EX %EY %EZ')
 		client.addDispatcher( d )
 		lc = LoopingCall( update )
 		dd = lc.start( 1.0 / 30 )
@@ -192,6 +193,6 @@ if __name__ == '__main__':
 	reactor.listenUDP( 5555, client )
 	calibrator = Calibrator( client, screen, reactor = reactor, eye = 0 )
 	fp = VelocityFP(1680,1050,473.76,296.1,500,23,45)
-	#calibrator.start(start)
-	reactor.callLater(0,lambda:start(None,None))
+	calibrator.start(start)
+	#reactor.callLater(0,lambda:start(None,None))
 	reactor.run()
