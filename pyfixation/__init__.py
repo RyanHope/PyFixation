@@ -1,7 +1,7 @@
 # -*- coding:    utf-8 -*-
 #===============================================================================
 # This file is part of PyFixation.
-# Copyright (C) 2012-2015 Ryan Hope <rmh3093@gmail.com>
+# Copyright (C) 2012-2016 Ryan Hope <rmh3093@gmail.com>
 #
 # PyFixation is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -24,4 +24,4 @@
 
 from velocity import VelocityFP
 
-__version__ = '0.4.0'
+__version__ = '0.4.1'

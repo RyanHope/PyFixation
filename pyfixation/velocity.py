@@ -1,7 +1,7 @@
 # -*- coding:    utf-8 -*-
 #===============================================================================
 # This file is part of PyFixation.
-# Copyright (C) 2012-2015 Ryan Hope <rmh3093@gmail.com>
+# Copyright (C) 2012-2016 Ryan Hope <rmh3093@gmail.com>
 #
 # PyFixation is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@ class VelocityFP(object):
 		self.screenHeight = screenHeight
 		self.threshold = threshold
 		self.nFixations = 0
+		self.nSamples = 0
 		self.fixating = False
 		self.samplerate = samplerate
 		self.order = 2
@@ -85,10 +86,14 @@ class VelocityFP(object):
 		data = self.processWindow()
 		if data[3] < self.threshold:
 			if not self.fixating:
+				self.nSamples = 1
 				self.nFixations += 1
 				self.fixating = True
+			else:
+				self.nSamples += 1
 		else:
 			self.fixating = False
+			self.nSamples = 0
 		return self.fixating, data
 
 if __name__ == '__main__':
